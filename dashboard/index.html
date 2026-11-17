@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token Radar — pre-token protocols ranked by implied launch value</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<a class="skip" href="#board-wrap">Skip to the board</a>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">◉</span>
+    <div>
+      <h1>Token Radar</h1>
+      <p>Pre-token protocols, ranked by what a launch would be worth</p>
+    </div>
+  </div>
+  <div class="snapshot" id="snapshot-badge">Snapshot loading…</div>
+</header>
+
+<section class="stats" id="stats" aria-label="Board summary"></section>
+
+<nav class="tabs" aria-label="Views">
+  <button class="tab active" data-tab="board" type="button">Board</button>
+  <button class="tab" data-tab="live" type="button">Already trading</button>
+  <button class="tab" data-tab="method" type="button">Method &amp; sandbox</button>
+</nav>
+
+<section id="view-board" class="view">
+  <div class="controls" role="search">
+    <label class="ctl search">Search
+      <input id="q" type="search" placeholder="Protocol name or slug…" autocomplete="off">
+    </label>
+    <label class="ctl">Category
+      <select id="cat"><option value="">All categories</option></select>
+    </label>
+    <label class="ctl">Chain
+      <select id="chain"><option value="">All chains</option></select>
+    </label>
+    <label class="ctl">Sort by
+      <select id="sort">
+        <option value="implied">Implied value ↓</option>
+        <option value="tvl">TVL ↓</option>
+        <option value="growth">7-day growth ↓</option>
+        <option value="age">Age ↓</option>
+        <option value="name">Name A–Z</option>
+      </select>
+    </label>
+    <label class="ctl check"><input id="watch" type="checkbox"> Watchlist only</label>
+  </div>
+  <p class="count" id="count" aria-live="polite"></p>
+  <div id="board-wrap" tabindex="-1">
+    <table class="board" id="board">
+      <thead><tr>
+        <th class="num">#</th><th>Protocol</th><th>Category</th><th>Chains</th>
+        <th class="num">TVL</th><th class="num">7d</th><th class="num">Age</th>
+        <th class="num">Implied value</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="empty" id="empty" hidden>No protocol matches this filter. Clear the search or pick another category.</p>
+  </div>
+  <p class="note">Implied value is this radar's model estimate from the snapshot's own figures — TVL,
+  category, 7-day growth, age and chain reach. It is not a prediction that a token will launch,
+  or what it would trade at. “Records no token” means DefiLlama's record lists none; a protocol
+  may still have a token its record does not carry.</p>
+</section>
+
+<section id="view-live" class="view" hidden>
+  <h2>Already trading</h2>
+  <p class="lede">These protocols already have a token that trades, so the board does not rank them.
+  Their market values are the comparables the model learns from — the median market-cap-per-TVL
+  of each category sets that category's multiple.</p>
+  <table class="board" id="live-table">
+    <thead><tr>
+      <th>Protocol</th><th>Category</th><th class="num">TVL</th>
+      <th class="num">Market cap</th><th class="num">Mcap / TVL</th><th class="num">7d</th>
+    </tr></thead>
+    <tbody id="live-rows"></tbody>
+  </table>
+</section>
+
+<section id="view-method" class="view" hidden>
+  <h2>Method</h2>
+  <div class="method">
+    <div>
+      <h3>The value model (radar-2)</h3>
+      <p>Every row is scored by the same formula, from the snapshot's own figures only.
+      No protocol name is special-cased.</p>
+      <p class="formula">implied = TVL × category multiple × growth × maturity × chain reach</p>
+      <ul>
+        <li><strong>Category multiple</strong> — the median circulating market-cap per dollar of TVL
+        among the live-token protocols in the same category (at least 3 comparables, else the
+        global median), clamped to 0.05–0.60. It is recomputed from the snapshot on every run.</li>
+        <li><strong>Growth</strong> — 1 + clamp(7-day TVL change, −60%, +120%) ÷ 100 × 0.5.</li>
+        <li><strong>Maturity</strong> — 0.6 + min(age in days, 1095) ÷ 1095 × 0.4. A protocol with no
+        listing date is scored as 365 days old.</li>
+        <li><strong>Chain reach</strong> — 1 + min(chains − 1, 4) × 0.03.</li>
+      </ul>
+      <h3>Who is on the board</h3>
+      <p>A protocol is ranked when it records no token (no market cap, no CoinGecko id, no
+      symbol) and is not a wrapped, staked or bridged product of a token that already trades:
+      no CEX, Bridge, Canonical Bridge, Liquid Staking, Liquid Restaking or Restaked BTC
+      category, no whole word “wrapped”, “staked” or “staking” in its name, no exchange-prefixed
+      name, no versioned name such as “Foo V2”. The 40-protocol watchlist is the floor, never
+      the ceiling: this board ranks every rankable protocol in the snapshot.</p>
+      <h3>Farm plans</h3>
+      <p>Each protocol's six steps are generated from its own record — category, main chain,
+      TVL and age. They are a positioning checklist, not financial advice, and they never
+      promise a token: a protocol that records no token today may never issue one.</p>
+    </div>
+    <div>
+      <h3>Model sandbox</h3>
+      <p>Move a slider to re-score the board live. The submitted board keeps the published
+      constants; this is a what-if, recomputed in your browser.</p>
+      <label class="slider">Growth weight <output id="gw-out">0.50</output>
+        <input id="gw" type="range" min="0" max="1" step="0.05" value="0.5">
+      </label>
+      <label class="slider">Category scale <output id="cs-out">1.00×</output>
+        <input id="cs" type="range" min="0.5" max="2" step="0.1" value="1">
+      </label>
+      <button id="reset" type="button">Reset to published model</button>
+      <p class="sandbox-note" id="sandbox-note">Showing the published model.</p>
+      <h3>Category multiples</h3>
+      <table class="mini" id="multiples"><thead><tr><th>Category</th><th class="num">Multiple</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</section>
+
+<aside class="detail" id="detail" hidden aria-label="Protocol detail">
+  <button class="close" id="detail-close" type="button" aria-label="Close detail">×</button>
+  <div id="detail-body"></div>
+</aside>
+
+<footer class="foot">
+  <p>Data: DeFiLlama public protocol list, frozen snapshot. Values are model estimates, not
+  financial advice. A launch is never promised; farm only what you can afford to lose, and
+  claim only from links the protocol itself publishes.</p>
+</footer>
+
+<script src="../data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
